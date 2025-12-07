@@ -1,0 +1,90 @@
+# Deployment configuration for Jetson Orin NX
+# Optimized for real-time inference on edge devices
+
+defaults:
+  - base
+
+# Model configuration (smaller for edge deployment)
+model:
+  backbone_variant: "s"  # Small variant for speed
+  input_size: [640, 640]
+  num_keypoints: 72
+  num_lanes: 4
+  use_polynomial: true
+  confidence_threshold: 0.5
+
+# Deployment-specific settings
+deployment:
+  # Target platform
+  platform: "jetson"
+  
+  # Use TensorRT
+  tensorrt: true
+  
+  # Precision for inference
+  precision: "fp16"  # FP16 for Jetson
+  
+  # Maximum batch size
+  max_batch_size: 1
+  
+  # TensorRT workspace size (512MB for Jetson)
+  workspace_size: 536870912
+  
+  # Enable INT8 quantization (requires calibration)
+  int8: false
+  calibration_images: 1000
+  
+  # Dynamic batch
+  dynamic_batch: false
+  
+  # CUDA streams for async processing
+  cuda_streams: 2
+  
+  # Pre-allocate memory
+  preallocate_memory: true
+
+# Tracker configuration (tuned for real-time)
+tracker:
+  max_age: 15  # Shorter for faster response
+  min_hits: 2
+  iou_threshold: 0.3
+  process_noise: 0.01
+  measurement_noise: 0.1
+  smoothing_factor: 0.5  # Less smoothing for responsiveness
+
+# Steering configuration
+steering:
+  lookahead_distance: 12.0  # Shorter for urban driving
+  max_lateral_offset: 2.0
+  max_heading_error: 0.5
+  fallback_mode: "hold"
+  fallback_frames: 3  # Faster fallback trigger
+
+# Camera configuration for typical automotive setup
+camera:
+  width: 1920
+  height: 1080
+  fx: 1000.0
+  fy: 1000.0
+  cx: 960.0
+  cy: 540.0
+  camera_height: 1.5
+  camera_pitch: 0.0
+  
+  ipm:
+    output_width: 640
+    output_height: 640
+    pixels_per_meter: 10.0
+    max_distance: 40.0  # Shorter for urban
+
+# Performance targets
+performance:
+  target_latency_ms: 40
+  target_fps: 30
+  max_memory_mb: 2048
+
+# Logging (minimal for production)
+logging:
+  level: "warning"
+  tensorboard: false
+  save_interval: 0

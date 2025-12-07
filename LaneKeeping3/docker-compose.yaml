@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # Development environment
+  dev:
+    build:
+      context: .
+      target: runtime
+    image: lane-keeping:dev
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONPATH=/app
+    command: bash
+    tty: true
+    stdin_open: true
+
+  # Training service
+  train:
+    build:
+      context: .
+      target: runtime
+    image: lane-keeping:train
+    volumes:
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+      - ./configs:/app/configs:ro
+    environment:
+      - PYTHONPATH=/app
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      python scripts/train.py
+      --config configs/train_tusimple.yaml
+      --output outputs/train
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Inference service
+  inference:
+    build:
+      context: .
+      target: runtime
+    image: lane-keeping:inference
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      python scripts/inference.py
+      --config configs/base.yaml
+      --weights models/best.pt
+      --source data/test_video.mp4
+      --output outputs/result.mp4
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Evaluation service
+  evaluate:
+    build:
+      context: .
+      target: runtime
+    image: lane-keeping:evaluate
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      python scripts/evaluate.py
+      --config configs/base.yaml
+      --weights models/best.pt
+      --output outputs/evaluation.json
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # TensorRT conversion service
+  tensorrt-convert:
+    build:
+      context: .
+      target: tensorrt
+    image: lane-keeping:tensorrt
+    volumes:
+      - ./models:/app/models
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      python3 scripts/export_model.py
+      --config configs/deploy_jetson.yaml
+      --weights models/best.pt
+      --output models/lane_model.engine
+      --format tensorrt
+      --fp16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # TensorBoard for monitoring
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./outputs:/app/outputs:ro
+    command: tensorboard --logdir=/app/outputs --host=0.0.0.0

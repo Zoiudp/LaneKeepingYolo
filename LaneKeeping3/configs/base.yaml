@@ -1,0 +1,259 @@
+# Base configuration for lane detection model
+# This serves as the default configuration that can be overridden
+
+# Model configuration
+model:
+  # Backbone variant: n (nano), s (small), m (medium), l (large), x (extra large)
+  backbone_variant: "m"
+  
+  # Input size [height, width]
+  input_size: [640, 640]
+  
+  # Number of keypoints per lane (sampled points along lane)
+  num_keypoints: 72
+  
+  # Maximum number of lanes to detect
+  num_lanes: 4
+  
+  # Use polynomial regression for lane representation
+  use_polynomial: true
+  
+  # Polynomial degree (3 = cubic polynomial)
+  polynomial_degree: 3
+  
+  # Number of polynomial coefficients (degree + 1)
+  num_poly_coeffs: 4
+  
+  # Confidence threshold for lane detection
+  confidence_threshold: 0.5
+  
+  # NMS threshold for lane suppression
+  nms_threshold: 0.5
+
+# Data configuration
+data:
+  # Dataset type: tusimple, culane, bdd100k
+  dataset_type: "tusimple"
+  
+  # Dataset paths (override in train config)
+  train_dir: "data/tusimple/train"
+  val_dir: "data/tusimple/val"
+  test_dir: "data/tusimple/test"
+  
+  # Number of workers for data loading
+  num_workers: 8
+
+# Augmentation configuration
+augmentation:
+  # Horizontal flip
+  horizontal_flip: true
+  horizontal_flip_prob: 0.5
+  
+  # Rotation
+  rotation: true
+  rotation_limit: 10  # degrees
+  
+  # Scale
+  scale: true
+  scale_limit: 0.1
+  
+  # Translation
+  translate: true
+  translate_limit: 0.1
+  
+  # Brightness/contrast
+  brightness_contrast: true
+  brightness_limit: 0.2
+  contrast_limit: 0.2
+  
+  # Color jitter
+  color_jitter: true
+  hue_shift_limit: 10
+  saturation_limit: 0.2
+  
+  # Gaussian blur
+  blur: true
+  blur_limit: 5
+  blur_prob: 0.3
+  
+  # Gaussian noise
+  noise: true
+  noise_var_limit: [10, 50]
+  noise_prob: 0.3
+  
+  # Weather simulation (rain, fog)
+  weather: true
+  rain_prob: 0.1
+  fog_prob: 0.1
+  
+  # Shadow overlay
+  shadow: true
+  shadow_prob: 0.2
+  
+  # Cutout/erase
+  cutout: true
+  cutout_prob: 0.2
+  cutout_num_holes: 3
+  cutout_max_size: 64
+
+# Loss configuration
+loss:
+  # Keypoint regression loss weight
+  keypoint_weight: 1.0
+  
+  # Polynomial regression loss weight
+  polynomial_weight: 1.0
+  
+  # Lane classification loss weight
+  classification_weight: 0.5
+  
+  # Lane confidence loss weight
+  confidence_weight: 1.0
+  
+  # Segmentation loss weight
+  segmentation_weight: 0.5
+  
+  # Temporal consistency loss weight
+  temporal_weight: 0.1
+  
+  # Focal loss gamma
+  focal_gamma: 2.0
+
+# Training configuration (defaults, override in train config)
+training:
+  # Total epochs
+  epochs: 100
+  
+  # Batch size
+  batch_size: 16
+  
+  # Learning rate
+  learning_rate: 1e-4
+  
+  # Weight decay
+  weight_decay: 0.01
+  
+  # Optimizer: adamw, adam, sgd
+  optimizer: "adamw"
+  
+  # Scheduler: cosine, step, none
+  scheduler: "cosine"
+  
+  # Minimum learning rate for cosine scheduler
+  min_lr: 1e-6
+  
+  # Gradient clipping
+  max_grad_norm: 10.0
+  
+  # Mixed precision training
+  amp: true
+  
+  # EMA decay
+  ema: true
+  ema_decay: 0.9999
+
+# Tracker configuration
+tracker:
+  # Maximum age before track is removed
+  max_age: 30
+  
+  # Minimum hits before track is confirmed
+  min_hits: 3
+  
+  # IoU threshold for matching
+  iou_threshold: 0.3
+  
+  # Kalman filter process noise
+  process_noise: 0.01
+  
+  # Kalman filter measurement noise
+  measurement_noise: 0.1
+  
+  # Temporal smoothing factor
+  smoothing_factor: 0.7
+
+# Steering guidance configuration
+steering:
+  # Lookahead distance (meters)
+  lookahead_distance: 15.0
+  
+  # Maximum lateral offset for safety (meters)
+  max_lateral_offset: 2.0
+  
+  # Maximum heading error for safety (radians)
+  max_heading_error: 0.5
+  
+  # Safety fallback mode: hold, center, stop
+  fallback_mode: "hold"
+  
+  # Number of frames before triggering fallback
+  fallback_frames: 5
+
+# Camera configuration (example values, override for specific camera)
+camera:
+  # Image dimensions
+  width: 1920
+  height: 1080
+  
+  # Camera intrinsics
+  fx: 1000.0
+  fy: 1000.0
+  cx: 960.0
+  cy: 540.0
+  
+  # Camera extrinsics (position relative to vehicle)
+  camera_height: 1.5  # meters above ground
+  camera_pitch: 0.0   # radians (looking straight ahead)
+  
+  # IPM configuration
+  ipm:
+    output_width: 640
+    output_height: 640
+    pixels_per_meter: 10.0
+    max_distance: 50.0
+
+# Evaluation configuration
+evaluation:
+  # Lateral error threshold (meters)
+  lateral_threshold: 0.15
+  
+  # IoU threshold for lane matching
+  iou_threshold: 0.5
+  
+  # Confidence threshold for evaluation
+  confidence_threshold: 0.5
+
+# Deployment configuration
+deployment:
+  # Target platform: gpu, jetson, tensorrt
+  platform: "tensorrt"
+  
+  # Precision: fp32, fp16, int8
+  precision: "fp16"
+  
+  # Maximum batch size
+  max_batch_size: 1
+  
+  # Workspace size for TensorRT (bytes)
+  workspace_size: 1073741824  # 1GB
+  
+  # Enable dynamic batch
+  dynamic_batch: false
+
+# Logging configuration
+logging:
+  # Log level: debug, info, warning, error
+  level: "info"
+  
+  # TensorBoard logging
+  tensorboard: true
+  
+  # Weights & Biases logging
+  wandb: false
+  wandb_project: "lane-keeping"
+  
+  # Save interval (epochs)
+  save_interval: 10
+  
+  # Validation interval (epochs)
+  val_interval: 1

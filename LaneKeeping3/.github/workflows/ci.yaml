@@ -1,0 +1,221 @@
+name: Lane Keeping CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install ruff black isort mypy
+      
+      - name: Run ruff
+        run: ruff check lane_keeping/ scripts/ tests/
+      
+      - name: Run black
+        run: black --check lane_keeping/ scripts/ tests/
+      
+      - name: Run isort
+        run: isort --check-only lane_keeping/ scripts/ tests/
+      
+      - name: Run mypy
+        run: mypy lane_keeping/ --ignore-missing-imports
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=lane_keeping --cov-report=xml --cov-report=html
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: true
+
+  test-gpu:
+    name: GPU Tests
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+      
+      - name: Run GPU tests
+        run: |
+          pytest tests/ -v -m gpu --timeout=300
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      
+      - name: Run integration tests
+        run: |
+          pytest tests/test_integration.py -v --timeout=300
+
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    needs: integration
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      
+      - name: Run benchmark
+        run: |
+          python -c "
+          import torch
+          from lane_keeping.models.lane_yolo import LaneYOLO
+          import time
+          import numpy as np
+          
+          model = LaneYOLO(num_keypoints=72, num_lanes=4, backbone_variant='n')
+          model.eval()
+          
+          x = torch.randn(1, 3, 640, 640)
+          
+          # Warmup
+          for _ in range(10):
+              with torch.no_grad():
+                  _ = model(x)
+          
+          # Benchmark
+          times = []
+          for _ in range(50):
+              start = time.perf_counter()
+              with torch.no_grad():
+                  _ = model(x)
+              times.append((time.perf_counter() - start) * 1000)
+          
+          print(f'Mean latency: {np.mean(times):.2f} ms')
+          print(f'P95 latency: {np.percentile(times, 95):.2f} ms')
+          "
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install build tools
+        run: pip install build twine
+      
+      - name: Build package
+        run: python -m build
+      
+      - name: Check package
+        run: twine check dist/*
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: lane-keeping:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [build, integration]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

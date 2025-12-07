@@ -1,0 +1,103 @@
+# Training configuration for CULane dataset
+# More challenging dataset requiring robust training settings
+
+defaults:
+  - base
+
+# Model configuration
+model:
+  backbone_variant: "l"  # Larger variant for challenging CULane
+  input_size: [640, 640]
+  num_keypoints: 78  # More keypoints for complex lanes
+  num_lanes: 4
+  use_polynomial: true
+
+# Data configuration
+data:
+  dataset_type: "culane"
+  train_dir: "data/culane/train"
+  val_dir: "data/culane/val"
+  test_dir: "data/culane/test"
+  num_workers: 8
+
+# Training configuration
+training:
+  epochs: 150  # More epochs for larger dataset
+  batch_size: 12  # Smaller batch for larger model
+  learning_rate: 1e-4
+  weight_decay: 0.01
+  optimizer: "adamw"
+  scheduler: "cosine"
+  min_lr: 1e-6
+  warmup_epochs: 10
+  warmup_lr: 1e-6
+  max_grad_norm: 10.0
+  amp: true
+  ema: true
+  ema_decay: 0.9999
+  label_smoothing: 0.1
+  num_workers: 8
+  pin_memory: true
+
+# Stronger augmentation for robustness
+augmentation:
+  horizontal_flip: true
+  horizontal_flip_prob: 0.5
+  
+  rotation: true
+  rotation_limit: 20
+  
+  scale: true
+  scale_limit: 0.2
+  
+  translate: true
+  translate_limit: 0.2
+  
+  brightness_contrast: true
+  brightness_limit: 0.4
+  contrast_limit: 0.4
+  
+  color_jitter: true
+  hue_shift_limit: 20
+  saturation_limit: 0.4
+  
+  blur: true
+  blur_limit: 9
+  blur_prob: 0.4
+  
+  noise: true
+  noise_var_limit: [10, 80]
+  noise_prob: 0.4
+  
+  weather: true
+  rain_prob: 0.2
+  fog_prob: 0.2
+  
+  shadow: true
+  shadow_prob: 0.4
+  
+  cutout: true
+  cutout_prob: 0.4
+  cutout_num_holes: 5
+  cutout_max_size: 100
+
+# Loss weights (adjusted for CULane characteristics)
+loss:
+  keypoint_weight: 1.0
+  polynomial_weight: 1.5  # Emphasize polynomial fitting
+  classification_weight: 0.5
+  confidence_weight: 1.0
+  segmentation_weight: 1.0  # Higher for better localization
+  temporal_weight: 0.0
+  focal_gamma: 2.0
+
+output_dir: "outputs/train_culane"
+
+logging:
+  level: "info"
+  tensorboard: true
+  wandb: false
+  save_interval: 10
+  val_interval: 1
+
+device: "cuda"

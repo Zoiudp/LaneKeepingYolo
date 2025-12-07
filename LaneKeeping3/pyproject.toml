@@ -1,0 +1,99 @@
+[project]
+name = "lane-keeping-yolov11"
+version = "1.0.0"
+description = "Production-grade lane detection and lane-centering module based on YOLOv11"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+authors = [
+    {name = "Lane Keeping Team", email = "lanekeeping@company.com"}
+]
+keywords = ["lane-detection", "autonomous-driving", "yolo", "computer-vision"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "ultralytics>=8.1.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "filterpy>=1.4.5",
+    "pyyaml>=6.0",
+    "omegaconf>=2.3.0",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.3.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.3.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.3.0",
+    "pre-commit>=3.3.0",
+]
+viz = [
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.14.0",
+]
+deploy = [
+    "onnx>=1.14.0",
+    "onnxruntime>=1.15.0",
+]
+all = ["lane-keeping-yolov11[dev,viz,deploy]"]
+
+[project.scripts]
+lane-train = "scripts.train:main"
+lane-infer = "scripts.inference:main"
+lane-export = "scripts.export:main"
+lane-eval = "scripts.evaluate:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lane_keeping*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["lane_keeping"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --cov=lane_keeping --cov-report=term-missing"
